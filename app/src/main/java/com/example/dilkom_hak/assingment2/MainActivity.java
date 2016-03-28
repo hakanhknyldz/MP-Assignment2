@@ -1,6 +1,8 @@
 package com.example.dilkom_hak.assingment2;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
@@ -20,7 +22,7 @@ public class MainActivity extends AppCompatActivity {
     private final int END_POINT = 99;
     public int currentFirst = 0;
     public int currentSecond = 0;
-    Thread thread1, thread2;
+    Thread thread1 , thread2;
     Button btnStart, btnPause, btnClear;
 
     @Override
@@ -59,28 +61,28 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.menu_main, menu);
-        return true;
-    }
+    private Handler hnd = new Handler() {
 
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+        @Override
+        public void handleMessage(Message msg) {
+            super.handleMessage(msg);
+            if (msg.what == 1) {
+                Bundle bundle = msg.getData();
+                String status = bundle.getString("status");
+                int first = bundle.getInt("first");
+                int second = bundle.getInt("second");
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+                tvfirst.setText(first + "");
+                tvsecond.setText(second + "");
+                etInfo.setText(status);
+            }
+
         }
+    };
 
-        return super.onOptionsItemSelected(item);
+    public Handler getHandler() {
+        return hnd;
     }
-
 
     private void btnClearMethod() {
         tvfirst.setText("0");
@@ -89,26 +91,136 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    private void btnStartMethod() {
+    private synchronized void btnStartMethod() {
 
 
         Log.d(TAG, "Start Method başladı.");
-        //thread2 = new Thread(secondRunnable);
-        //thread2.start();
 
-        thread2 = new Thread() {
-            public void run() {
-                runOnUiThread(secondRunnable);
+
+            thread2 = new Thread(secondRunnable);
+            thread1 = new Thread(firstRunnable);
+            thread2.start();
+            thread1.start();
+
+    }
+
+    private Runnable firstRunnable = new Runnable() {
+        @Override
+        public void run() {
+            firstRunnableMethod();
+        }
+    };
+
+
+    private Runnable secondRunnable = new Runnable() {
+        @Override
+        public void run() {
+            secondRunnableMethod();
+        }
+    };
+
+    private void firstRunnableMethod() {
+        try {
+            thread2.join();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        Log.d("HAKKE","firstRunnableMethoddayız..");
+        String status = "";
+        if(currentFirst != 9)
+        {
+            status = "First Thread is now Working \n";
+            status += "Second Thread is set to Zero";
+
+            try {
+                Thread.sleep(1000);
+                currentFirst  = currentFirst + 1;  //firstly 0 , it's now 1.. and we'll go like that..
+                currentSecond = 0; // it's set '0' --> 10
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-        };
-        thread2.start();
+
+
+            Log.d(TAG, "firstRunnable => thread2.isAlive :" + thread2.isAlive());
+            if(!thread2.isAlive())
+            {
+                Log.d(TAG,"firstRunnable => isAlive()  içeri girdi.." );
+                // thread2.yield();
+
+                thread2 = new Thread(secondRunnable);
+                thread2.start();
+
+            }
+        }
+        else{
+            status = "Counter is stopped!";
+            thread2.interrupt();
+        }
+
+        Message msg = new Message();
+        msg.what = 1;
+        Bundle bundle = new Bundle();
+        bundle.putString("status", status);
+        bundle.putInt("first", currentFirst);
+        bundle.putInt("second", currentSecond);
+        msg.setData(bundle);
+        hnd.sendMessage(msg);
+
+
 
 
     }
 
+    private void secondRunnableMethod() {
+        Log.d("HAKKE","secondRunnableMethoddayız..");
+
+        for(int i = 1 ; i<= 9 ; i++)
+        {
+            String status = "First Thread Waits \n";
+            status += "Second Thread is Working!";
+            currentSecond = i;
+            try
+            {
+                Thread.sleep(500);
+            }
+            catch(InterruptedException e)
+            {
+                e.printStackTrace();
+            }
+
+            Message msg = new Message();
+
+            msg.what = 1;
+            Bundle bundle = new Bundle();
+            bundle.putString("status",status);
+            bundle.putInt("first", currentFirst);
+            bundle.putInt("second",currentSecond);
+            msg.setData(bundle);
+
+            hnd.sendMessage(msg);
+
+          //  ((MainActivity)context).getHandler().sendMessage(msg);
+        }
+        Log.d(TAG,"SecondRunnable => thread1.isAlive :" + thread1.isAlive());
+
+        if(!thread1.isAlive())
+        {
+            thread1 = new Thread(firstRunnable);
+            thread1.start();
+            //thread1.yield();
+        }
+
+
+
+
+    }
+
+
     private void btnPauseMethod() {
         Log.d(TAG, "Pause Method başladı.");
 
+        /*
         if (thread2 != null || thread1 != null) {
             try {
                 thread2.wait();
@@ -118,9 +230,11 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        */
 
     }
 
+    /*
     private Runnable firstRunnable = new Runnable() {
         @Override
         public void run() {
@@ -197,6 +311,29 @@ public class MainActivity extends AppCompatActivity {
             }
         }
     };
+
+    */
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Inflate the menu; this adds items to the action bar if it is present.
+        getMenuInflater().inflate(R.menu.menu_main, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        // Handle action bar item clicks here. The action bar will
+        // automatically handle clicks on the Home/Up button, so long
+        // as you specify a parent activity in AndroidManifest.xml.
+        int id = item.getItemId();
+
+        //noinspection SimplifiableIfStatement
+        if (id == R.id.action_settings) {
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
 
 
 }
